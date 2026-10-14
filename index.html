@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>US Database - ZIP Lookup</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        /* Modern Professional Stylesheet - Matched to ViciDial */
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --accent-blue: #38bdf8;
+            --accent-hover: #0ea5e9;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --danger-color: #f43f5e;
+            --success-color: #10b981;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Navbar Styling */
+        .navbar {
+            width: 100%;
+            max-width: 1200px;
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .nav-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.05em;
+        }
+
+        .nav-title span {
+            color: var(--accent-blue);
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            margin-left: 1.5rem;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: color 0.2s ease;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            color: var(--accent-blue);
+            background-color: rgba(56, 189, 248, 0.1);
+        }
+
+        /* Wrapper & Card Layout */
+        .wrapper {
+            width: 100%;
+            max-width: 1200px;
+            padding: 3rem 1.5rem;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2.5rem;
+            width: 100%;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        /* Two-Column Top Row Layout */
+        .top-row {
+            display: grid;
+            grid-template-columns: 1.4fr 0.8fr;
+            gap: 2rem;
+        }
+
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .left-panel h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        #status {
+            display: inline-block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1.25rem;
+            transition: color 0.3s ease;
+        }
+
+        #status.loaded {
+            color: var(--success-color);
+        }
+
+        #status.error {
+            color: var(--danger-color);
+        }
+
+        /* Input Controls */
+        textarea {
+            width: 100%;
+            height: 140px;
+            background-color: rgba(15, 23, 42, 0.6);
+            border: 1.5px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1rem;
+            color: var(--text-main);
+            font-size: 0.95rem;
+            line-height: 1.5;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            margin-bottom: 1.25rem;
+        }
+
+        textarea:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+        }
+
+        /* Action Panel Buttons */
+        .btn-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        button {
+            padding: 0.85rem 1.5rem;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        button.search {
+            background-color: var(--accent-blue);
+            color: #000;
+        }
+
+        button.search:hover {
+            background-color: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        button.download {
+            background-color: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            border: 1.5px solid var(--border-color);
+        }
+
+        button.download:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: var(--text-muted);
+            transform: translateY(-1px);
+        }
+
+        /* Pivot & Data Summary Table Styling */
+        .pivot-box {
+            background-color: rgba(15, 23, 42, 0.4);
+            border: 1.5px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            max-height: 250px;
+        }
+
+        .pivot-box h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        /* Grand total row for the State Summary box */
+        .pivot-total {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.5rem 1rem;
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            letter-spacing: 0.02em;
+        }
+
+        .pivot-total strong {
+            color: var(--accent-blue);
+            font-size: 0.95rem;
+        }
+
+        /* Table Wrapping and Core Layout Styles */
+        .table-container {
+            max-height: 350px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background-color: rgba(15, 23, 42, 0.6);
+        }
+
+        .pivot-container {
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background-color: rgba(15, 23, 42, 0.8);
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            padding: 0.75rem 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            border-bottom: 1.5px solid var(--border-color);
+        }
+
+        td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-main);
+            white-space: nowrap;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background-color: rgba(56, 189, 248, 0.03);
+        }
+
+        /* Custom Scrollbar Styles */
+        .table-container::-webkit-scrollbar, .pivot-container::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .table-container::-webkit-scrollbar-track, .pivot-container::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.3);
+        }
+        .table-container::-webkit-scrollbar-thumb, .pivot-container::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+        .table-container::-webkit-scrollbar-thumb:hover, .pivot-container::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* Watermark */
+        .watermark {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            opacity: 0.65;
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .top-row {
+                grid-template-columns: 1fr;
+            }
+            .card {
+                padding: 1.5rem;
+            }
+            .navbar {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .nav-links a {
+                margin: 0 0.5rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="navbar">
+    <div class="nav-title">US <span>Database</span></div>
+    <div class="nav-links">
+        <a href="#" class="active">ZIP Lookup</a>
+        <a href="vicidial.html">ViciDial Filter</a>
+    </div>
+</div>
+
+<div class="wrapper">
+    <div class="card">
+
+        <div class="top-row">
+
+            <div class="left-panel">
+                <h2>⚡ Fast ZIP Lookup & Export</h2>
+                <span id="status">Loading database...</span>
+
+                <textarea id="zipInput"
+                    placeholder="Paste ZIP codes here (separated by commas, spaces, or newlines)..."></textarea>
+
+                <div class="btn-container">
+                    <button class="search" onclick="searchZip()">Search Database</button>
+                    <button class="download" onclick="downloadExcel()">Export Excel</button>
+                </div>
+            </div>
+
+            <div class="pivot-box">
+                <h3>📊 State Summary</h3>
+                <div class="pivot-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>State</th>
+                                <th>Total ZIPs</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pivotBody">
+                            <tr>
+                                <td colspan="2" style="text-align:center;color:var(--text-muted);font-size: 0.8rem;padding: 2rem 0;">
+                                    Run search to view states
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pivot-total">
+                    <span>Total States: <strong id="totalStates">0</strong></span>
+                    <span>Total ZIPs: <strong id="totalZips">0</strong></span>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ZIP</th>
+                        <th>City</th>
+                        <th>State</th>
+                        <th>County</th>
+                        <th>Area Codes</th>
+                    </tr>
+                </thead>
+                <tbody id="resultBody">
+                    <tr>
+                        <td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px 0;">
+                            Enter ZIP numbers above to process database lookup.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+</div>
+
+<div class="watermark">Created by Nimo</div>
+
+<script>
+// Original logic preserved, now backed by a hash map + Web Worker so lookups stay instant.
+
+// The worker parses the large JSON and answers every lookup off the main thread,
+// which keeps typing, scrolling and rendering lag free.
+const WORKER_SRC = `
+let index = Object.create(null);
+
+function pad5(z) {
+  return z.length < 5 ? ("00000" + z).slice(-5) : z;
+}
+
+self.onmessage = function (e) {
+  const msg = e.data || {};
+
+  if (msg.type === "load") {
+    try {
+      const data = JSON.parse(msg.text);
+      const map = Object.create(null);
+      for (let i = 0; i < data.length; i++) {
+        const item = data[i];
+        const z = String(item.zip);
+        map[z] = item;
+        const padded = pad5(z);
+        if (padded !== z) map[padded] = item;
+      }
+      index = map;
+      self.postMessage({ type: "ready", count: data.length });
+    } catch (err) {
+      self.postMessage({ type: "error", message: "Database parse failed" });
+    }
+    return;
+  }
+
+  if (msg.type === "search") {
+    const rows = new Array(msg.zips.length);
+    for (let i = 0; i < msg.zips.length; i++) {
+      const key = msg.zips[i];
+      rows[i] = index[key] || index[pad5(key)] || null;
+    }
+    self.postMessage({ type: "results", requestId: msg.requestId, rows: rows });
+  }
+};
+`;
+
+let zipMap = Object.create(null), currentResults = [], jsonLoaded = false;
+let zipWorker = null, workerReady = false, searchId = 0, pendingEntries = [];
+
+const MAX_ROWS = 2000;  // render cap: keeps the table instant even on huge pastes
+const statusEl = document.getElementById('status');
+
+fetch('zipdata.json')
+.then(r => r.text())
+.then(text => {
+    if (!startWorker(text)) parseLocally(text);
+})
+.catch(showLoadError);
+
+function startWorker(text) {
+    if (typeof Worker === "undefined" || typeof Blob === "undefined" ||
+        typeof URL === "undefined" || !URL.createObjectURL) return false;
+
+    try {
+        const url = URL.createObjectURL(new Blob([WORKER_SRC], { type: "application/javascript" }));
+        zipWorker = new Worker(url);
+        zipWorker.objectUrl = url;
+        zipWorker.onmessage = onWorkerMessage;
+        zipWorker.onerror = recoverOnMainThread;
+        zipWorker.postMessage({ type: "load", text: text });
+        return true;
+    } catch (err) {
+        zipWorker = null;
+        return false;
+    }
+}
+
+function onWorkerMessage(e) {
+    const msg = e.data || {};
+
+    if (msg.type === "ready") {
+        workerReady = true;
+        jsonLoaded = true;
+        if (zipWorker && zipWorker.objectUrl) {
+            URL.revokeObjectURL(zipWorker.objectUrl);
+            zipWorker.objectUrl = null;
+        }
+        setLoadedStatus(msg.count);
+        return;
+    }
+
+    if (msg.type === "results") {
+        if (msg.requestId !== searchId) return;  // a newer search replaced this one
+        renderRows(pendingEntries, msg.rows);
+        return;
+    }
+
+    if (msg.type === "error") recoverOnMainThread();
+}
+
+function recoverOnMainThread() {
+    if (jsonLoaded) return;
+
+    if (zipWorker) {
+        try { zipWorker.terminate(); } catch (err) {}
+        zipWorker = null;
+    }
+
+    fetch('zipdata.json').then(r => r.json()).then(buildMap).catch(showLoadError);
+}
+
+function parseLocally(text) {
+    // Let the status text paint before the synchronous parse of a small/legacy browser.
+    setTimeout(() => {
+        try { buildMap(JSON.parse(text)); } catch (err) { showLoadError(); }
+    }, 0);
+}
+
+function buildMap(data) {
+    const map = Object.create(null);
+
+    for (let i = 0; i < data.length; i++) {
+        const item = data[i];
+        const z = String(item.zip);
+        map[z] = item;
+
+        const padded = z.length < 5 ? ("00000" + z).slice(-5) : z;  // 501 -> 00501
+        if (padded !== z) map[padded] = item;
+    }
+
+    zipMap = map;
+    jsonLoaded = true;
+    setLoadedStatus(data.length);
+}
+
+function setLoadedStatus(count) {
+    statusEl.classList.remove('error');
+    statusEl.classList.add('loaded');
+    statusEl.innerText = "✓ Database Loaded (" + count.toLocaleString() + " Records)";
+}
+
+function showLoadError() {
+    statusEl.classList.remove('loaded');
+    statusEl.classList.add('error');
+    statusEl.innerText = "Error loading zipdata.json database file.";
+}
+
+// The database stores ZIPs with the initial zero dropped (03043 -> 3043), so the
+// typed value is normalised the same way before it is looked up.
+function normalizeZip(value) {
+    let z = value.trim();
+
+    if (/^\d+\.0+$/.test(z)) z = z.split(".")[0];  // Excel style 3043.0
+    const match = z.match(/\d{3,}/);               // drop ZIP+4 / stray characters
+    if (match) z = match[0];
+
+    return z.replace(/^0+(?=\d)/, "");             // 03043 -> 3043, 04008 -> 4008
+}
+
+function parseInput(input) {
+    const parts = input.split(/[\r\n,;\t ]+/);
+    const entries = [];
+
+    for (let i = 0; i < parts.length; i++) {
+        const raw = parts[i].trim();
+        if (!raw) continue;
+        entries.push({ label: raw, key: normalizeZip(raw) });
+    }
+
+    return entries;
+}
+
+function searchZip() {
+    if (!jsonLoaded) {
+        alert("Database still initializing. Please wait.");
+        return;
+    }
+
+    const entries = parseInput(document.getElementById("zipInput").value);
+    if (!entries.length) return;
+
+    searchId++;
+    pendingEntries = entries;
+
+    if (zipWorker && workerReady) {
+        statusEl.innerText = "🔎 Searching " + entries.length.toLocaleString() + " ZIP code(s)...";
+        zipWorker.postMessage({
+            type: "search",
+            requestId: searchId,
+            zips: entries.map(e => e.key)
+        });
+        return;
+    }
+
+    const rows = new Array(entries.length);
+    for (let i = 0; i < entries.length; i++) {
+        const key = entries[i].key;
+        const padded = key.length < 5 ? ("00000" + key).slice(-5) : key;
+        rows[i] = zipMap[key] || zipMap[padded] || null;
+    }
+
+    renderRows(entries, rows);
+}
+
+function renderRows(entries, rows) {
+    const tbody = document.getElementById("resultBody");
+    const fragment = document.createDocumentFragment();
+
+    currentResults = [];
+    const stateCounts = Object.create(null);
+    let matched = 0, rendered = 0;
+
+    for (let i = 0; i < entries.length; i++) {
+        const item = rows[i];
+
+        if (item) {
+            currentResults.push(item);
+            const state = item.state || "Unknown";
+            stateCounts[state] = (stateCounts[state] || 0) + 1;
+            matched++;
+        }
+
+        if (rendered < MAX_ROWS) {
+            fragment.appendChild(item ? resultRow(entries[i].label, item) : missingRow(entries[i].label));
+            rendered++;
+        }
+    }
+
+    tbody.innerHTML = "";
+    tbody.appendChild(fragment);
+
+    if (entries.length > rendered) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 5;
+        td.style.textAlign = "center";
+        td.style.color = "var(--text-muted)";
+        td.style.padding = "12px 0";
+        td.textContent = "Showing first " + rendered.toLocaleString() + " of " + entries.length.toLocaleString() +
+            " rows — all " + currentResults.length.toLocaleString() + " matched ZIPs are included in the Excel export.";
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+    }
+
+    renderPivot(stateCounts, currentResults.length);
+
+    statusEl.innerText = "✓ " + matched.toLocaleString() + " of " + entries.length.toLocaleString() +
+        " ZIP code(s) found" + (entries.length > rendered ? " · table trimmed for speed" : "");
+}
+
+function resultRow(label, item) {
+    const tr = document.createElement("tr");
+    const values = [label, item.primary_city || item.city || "-", item.state, item.county || "-", item.area_codes || "-"];
+
+    for (let i = 0; i < values.length; i++) {
+        const td = document.createElement("td");
+
+        if (i === 0) {
+            const strong = document.createElement("strong");
+            strong.textContent = values[i];
+            td.appendChild(strong);
+        } else {
+            td.textContent = values[i];
+        }
+
+        tr.appendChild(td);
+    }
+
+    return tr;
+}
+
+function missingRow(label) {
+    const tr = document.createElement("tr");
+
+    const first = document.createElement("td");
+    const strong = document.createElement("strong");
+    strong.textContent = label;
+    first.appendChild(strong);
+    tr.appendChild(first);
+
+    const td = document.createElement("td");
+    td.colSpan = 4;
+    td.style.color = "var(--danger-color)";
+    td.textContent = "No Record Found";
+    tr.appendChild(td);
+
+    return tr;
+}
+
+// ✅ Pivot logic + grand totals
+function renderPivot(stateCounts, totalZips) {
+    const body = document.getElementById("pivotBody");
+    const states = Object.keys(stateCounts).sort((a, b) => stateCounts[b] - stateCounts[a] || a.localeCompare(b));
+
+    let pivotHtml = "";
+
+    states.forEach(state => {
+        pivotHtml += `
+                <tr>
+                    <td>${escapeHtml(state)}</td>
+                    <td><strong>${stateCounts[state]}</strong></td>
+                </tr>`;
+    });
+
+    body.innerHTML = pivotHtml ||
+        `<tr><td colspan="2" style="text-align:center;color:var(--text-muted);font-size:0.8rem;padding:2rem 0;">No data</td></tr>`;
+
+    document.getElementById("totalStates").innerText = states.length.toLocaleString();
+    document.getElementById("totalZips").innerText = totalZips.toLocaleString();
+}
+
+function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, c => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+}
+
+function downloadExcel() {
+    if (!currentResults.length)
+        return alert("No valid result data available to export!");
+
+    let ws = XLSX.utils.json_to_sheet(currentResults);
+    let wb = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(wb, ws, "US_Database_Export");
+    XLSX.writeFile(wb, "US_DB_ZIP_Export.xlsx");
+}
+</script>
+
+</body>
+</html>
